@@ -16,6 +16,15 @@
 			"transformations": [
 				{
 					"name": "derivedColumn1"
+				},
+				{
+					"name": "derivedColumn2"
+				},
+				{
+					"name": "derivedColumn3"
+				},
+				{
+					"name": "derivedColumn4"
 				}
 			],
 			"scriptLines": [
@@ -31,7 +40,15 @@
 				"     validateSchema: false,",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
 				"     format: 'table') ~> source1",
-				"source1 derive(admission_id = toInteger(trim(admission_id))) ~> derivedColumn1"
+				"source1 derive(admission_id = toInteger(trim(admission_id)),",
+				"          patient_id = toInteger(trim(patient_id)),",
+				"          attending_doctor_id = toInteger(trim(attending_doctor_id)),",
+				"          admission_date = coalesce(     toDate(trim(admission_date), 'yyyy-MM-dd'),     toDate(trim(admission_date), 'MM-dd-yy'),     toDate(trim(admission_date), 'MM/dd/yyyy'),     toDate(trim(admission_date), 'dd-MMM-yyyy'),     toDate(trim(admission_date), 'MMMM dd, yyyy') ),",
+				"          discharge_date = coalesce(     toDate(trim(discharge_date), 'yyyy-MM-dd'),     toDate(trim(discharge_date), 'MM-dd-yy'),     toDate(trim(discharge_date), 'MM/dd/yyyy'),     toDate(trim(discharge_date), 'dd-MMM-yyyy'),     toDate(trim(discharge_date), 'MMMM dd, yyyy') ),",
+				"          department = case(     in(['cardiology', 'cardio', 'cardiolgy'], lower(trim(department))), 'Cardiology',     in(['emergency', 'emergancy', 'er'], lower(trim(department))), 'Emergency',     in(['general surgery', 'generalsurgery', 'gen surg'], lower(trim(department))), 'General Surgery',     in(['neurology', 'neuro', 'nuerology'], lower(trim(department))), 'Neurology',     in(['oncology', 'onco', 'oncologyy'], lower(trim(department))), 'Oncology',     in(['orthopedics', 'orthopaedics', 'ortho'], lower(trim(department))), 'Orthopedics',     in(['pediatrics', 'paediatrics', 'peds'], lower(trim(department))), 'Pediatrics',     'Unknown' )) ~> derivedColumn1",
+				"derivedColumn1 derive({Quarantine_Errores (61 filas: 42 sin fecha de ingreso + 19 con alta menor al ingreso): Va por la rama Default hacia un Sink de cuarentena conservando dq_error_reason para su revisión.} = iif(     isNull(admission_date) || isNull(discharge_date) || discharge_date < admission_date,     toInteger(null()),     toInteger(discharge_date - admission_date) )) ~> derivedColumn2",
+				"derivedColumn2 derive(dq_error_reason = case(     isNull(admission_id) || isNull(patient_id) || isNull(attending_doctor_id), 'MISSING_REQUIRED_ID',     isNull(admission_date), 'MISSING_ADMISSION_DATE',     !isNull(discharge_date) && discharge_date < admission_date, 'DISCHARGE_BEFORE_ADMISSION',     department == 'Unknown', 'INVALID_DEPARTMENT',     toString(null()) )) ~> derivedColumn3",
+				"derivedColumn3 derive({_silver_processed_at} = currentUTC()) ~> derivedColumn4"
 			]
 		}
 	}

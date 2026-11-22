@@ -13,46 +13,123 @@
 						"type": "DatasetReference"
 					},
 					"name": "Admisiones"
-				}
-			],
-			"sinks": [
+				},
 				{
 					"dataset": {
-						"referenceName": "gold_fact_admisiones",
+						"referenceName": "gold_dim_paciente",
 						"type": "DatasetReference"
 					},
-					"name": "sink1"
+					"name": "dimPaciente"
+				},
+				{
+					"dataset": {
+						"referenceName": "gold_dim_departamento",
+						"type": "DatasetReference"
+					},
+					"name": "dimDepa"
+				},
+				{
+					"dataset": {
+						"referenceName": "dw_bronze_diagnoses",
+						"type": "DatasetReference"
+					},
+					"name": "silverDiagnostc"
+				},
+				{
+					"dataset": {
+						"referenceName": "gold_dim_diagnostico",
+						"type": "DatasetReference"
+					},
+					"name": "dimDiagnos"
+				},
+				{
+					"dataset": {
+						"referenceName": "gold_dim_fecha",
+						"type": "DatasetReference"
+					},
+					"name": "dimfecha"
 				}
 			],
-			"transformations": [],
+			"sinks": [],
+			"transformations": [
+				{
+					"name": "join1"
+				}
+			],
 			"scriptLines": [
 				"source(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
-				"     query: 'SELECT\\n    a.admission_id AS admission_id_bk,\\n    p.paciente_key,\\n    dep.departamento_key,\\n    diag.diagnostico_key,\\n    fi.fecha_key AS fecha_ingreso_key,\\n    fa.fecha_key AS fecha_alta_key,\\n    a.attending_doctor_id AS medico_id,\\n    CASE\\n        WHEN a.discharge_date IS NULL THEN NULL\\n        ELSE DATEDIFF(day, a.admission_date, a.discharge_date)\\n    END AS dias_estancia,\\n    1 AS conteo_admisiones\\nFROM silver.admissions a\\n\\nLEFT JOIN gold.dim_paciente p\\n    ON a.patient_id = p.patient_id_bk\\n\\nLEFT JOIN gold.dim_departamento dep\\n    ON a.department = dep.nombre_departamento\\n\\nINNER JOIN (\\n    SELECT admission_id, icd_code\\n    FROM (\\n        SELECT\\n            admission_id,\\n            icd_code,\\n            ROW_NUMBER() OVER (\\n                PARTITION BY admission_id\\n                ORDER BY diagnosis_id\\n            ) AS rn\\n        FROM silver.diagnoses\\n    ) x\\n    WHERE rn = 1\\n) d\\n    ON a.admission_id = d.admission_id\\n\\nINNER JOIN gold.dim_diagnostico diag\\n    ON d.icd_code = diag.codigo_icd\\n\\nLEFT JOIN gold.dim_fecha fi\\n    ON a.admission_date = fi.fecha_completa\\n\\nLEFT JOIN gold.dim_fecha fa\\n    ON a.discharge_date = fa.fecha_completa',",
-				"     format: 'query') ~> Admisiones",
-				"Admisiones sink(allowSchemaDrift: true,",
-				"     validateSchema: false,",
-				"     input(",
-				"          admision_key as long,",
-				"          admission_id_bk as integer,",
+				"     format: 'table') ~> Admisiones",
+				"source(output(",
 				"          paciente_key as integer,",
-				"          departamento_key as integer,",
-				"          diagnostico_key as integer,",
-				"          fecha_ingreso_key as integer,",
-				"          fecha_alta_key as integer,",
-				"          medico_id as integer,",
-				"          dias_estancia as integer,",
-				"          conteo_admisiones as integer",
+				"          patient_id_bk as integer,",
+				"          nombre_completo as string,",
+				"          genero as string,",
+				"          fecha_nacimiento as date,",
+				"          rango_etario as string,",
+				"          correo_electronico as string,",
+				"          direccion as string,",
+				"          proveedor_seguro as string",
 				"     ),",
-				"     deletable:false,",
-				"     insertable:true,",
-				"     updateable:false,",
-				"     upsertable:false,",
-				"     format: 'table',",
-				"     skipDuplicateMapInputs: true,",
-				"     skipDuplicateMapOutputs: true,",
-				"     errorHandlingOption: 'stopOnFirstError') ~> sink1"
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> dimPaciente",
+				"source(output(",
+				"          departamento_key as integer,",
+				"          nombre_departamento as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> dimDepa",
+				"source(output(",
+				"          diagnosis_id as string,",
+				"          admission_id as string,",
+				"          icd_code as string,",
+				"          diagnosis_description as string,",
+				"          severity as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> silverDiagnostc",
+				"source(output(",
+				"          diagnostico_key as integer,",
+				"          codigo_icd as string,",
+				"          descripcion_patologia as string,",
+				"          nivel_severidad as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> dimDiagnos",
+				"source(output(",
+				"          fecha_key as integer,",
+				"          fecha_completa as date,",
+				"          anio as integer,",
+				"          trimestre as integer,",
+				"          trimestre_nombre as string,",
+				"          mes as integer,",
+				"          mes_nombre as string,",
+				"          mes_corto as string,",
+				"          semana_anio as integer,",
+				"          dia_mes as integer,",
+				"          dia_semana as integer,",
+				"          dia_nombre as string,",
+				"          es_fin_de_semana as boolean",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     query: 'SELECT fecha_completa, fecha_key',",
+				"     format: 'query') ~> dimfecha",
+				"Admisiones, dimPaciente join(ERROR_FUNCTION('') == patient_id_bk,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> join1"
 			]
 		}
 	}

@@ -12,7 +12,15 @@
 					"name": "source1"
 				}
 			],
-			"sinks": [],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "dw_silver_admissions",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
 			"transformations": [
 				{
 					"name": "derivedColumn1"
@@ -25,6 +33,9 @@
 				},
 				{
 					"name": "derivedColumn4"
+				},
+				{
+					"name": "split1"
 				}
 			],
 			"scriptLines": [
@@ -48,7 +59,27 @@
 				"          department = case(     in(['cardiology', 'cardio', 'cardiolgy'], lower(trim(department))), 'Cardiology',     in(['emergency', 'emergancy', 'er'], lower(trim(department))), 'Emergency',     in(['general surgery', 'generalsurgery', 'gen surg'], lower(trim(department))), 'General Surgery',     in(['neurology', 'neuro', 'nuerology'], lower(trim(department))), 'Neurology',     in(['oncology', 'onco', 'oncologyy'], lower(trim(department))), 'Oncology',     in(['orthopedics', 'orthopaedics', 'ortho'], lower(trim(department))), 'Orthopedics',     in(['pediatrics', 'paediatrics', 'peds'], lower(trim(department))), 'Pediatrics',     'Unknown' )) ~> derivedColumn1",
 				"derivedColumn1 derive({Quarantine_Errores (61 filas: 42 sin fecha de ingreso + 19 con alta menor al ingreso): Va por la rama Default hacia un Sink de cuarentena conservando dq_error_reason para su revisión.} = iif(     isNull(admission_date) || isNull(discharge_date) || discharge_date < admission_date,     toInteger(null()),     toInteger(discharge_date - admission_date) )) ~> derivedColumn2",
 				"derivedColumn2 derive(dq_error_reason = case(     isNull(admission_id) || isNull(patient_id) || isNull(attending_doctor_id), 'MISSING_REQUIRED_ID',     isNull(admission_date), 'MISSING_ADMISSION_DATE',     !isNull(discharge_date) && discharge_date < admission_date, 'DISCHARGE_BEFORE_ADMISSION',     department == 'Unknown', 'INVALID_DEPARTMENT',     toString(null()) )) ~> derivedColumn3",
-				"derivedColumn3 derive({_silver_processed_at} = currentUTC()) ~> derivedColumn4"
+				"derivedColumn3 derive({_silver_processed_at} = currentUTC()) ~> derivedColumn4",
+				"derivedColumn4 split(isNull(dq_error_reason),",
+				"     disjoint: false) ~> split1@(limpia, error)",
+				"split1@limpia sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          admission_id as string,",
+				"          patient_id as string,",
+				"          admission_date as string,",
+				"          discharge_date as string,",
+				"          department as string,",
+				"          attending_doctor_id as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sink1"
 			]
 		}
 	}

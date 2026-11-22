@@ -93,6 +93,9 @@
 				},
 				{
 					"name": "derivedColumn1"
+				},
+				{
+					"name": "idInt"
 				}
 			],
 			"scriptLines": [
@@ -200,13 +203,13 @@
 				"     matchType:'exact',",
 				"     ignoreSpaces: false,",
 				"     broadcast: 'auto')~> join2",
-				"join2, silverDiagnostc join(ADMISIONES@admission_id == silverDiagnostc@admission_id,",
+				"join2, idInt join(ADMISIONES@admission_id == idInt@admission_id,",
 				"     joinType:'left',",
 				"     matchType:'exact',",
 				"     ignoreSpaces: false,",
 				"     broadcast: 'auto')~> join3",
 				"join3, dimDiagnos join(icd_code == codigo_icd,",
-				"     joinType:'left',",
+				"     joinType:'inner',",
 				"     matchType:'exact',",
 				"     ignoreSpaces: false,",
 				"     broadcast: 'auto')~> join4",
@@ -242,6 +245,7 @@
 				"    toInteger((toLong(discharge_date) - toLong(admission_date)) / 86400000)\r",
 				"),",
 				"          conteo_admisiones = 1) ~> derivedColumn1",
+				"silverDiagnostc derive(admission_id = toInteger(trim(admission_id))) ~> idInt",
 				"derivedColumn1 sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     input(",

@@ -13,19 +13,21 @@
 		"schema": [
 			{
 				"name": "admission_id",
-				"type": "nvarchar"
+				"type": "int",
+				"precision": 10
 			},
 			{
 				"name": "patient_id",
-				"type": "nvarchar"
+				"type": "int",
+				"precision": 10
 			},
 			{
 				"name": "admission_date",
-				"type": "nvarchar"
+				"type": "date"
 			},
 			{
 				"name": "discharge_date",
-				"type": "nvarchar"
+				"type": "date"
 			},
 			{
 				"name": "department",
@@ -33,7 +35,8 @@
 			},
 			{
 				"name": "attending_doctor_id",
-				"type": "nvarchar"
+				"type": "int",
+				"precision": 10
 			}
 		],
 		"typeProperties": {

@@ -13,15 +13,17 @@
 		"schema": [
 			{
 				"name": "diagnosis_id",
-				"type": "nvarchar"
+				"type": "int",
+				"precision": 10
 			},
 			{
 				"name": "admission_id",
-				"type": "nvarchar"
+				"type": "int",
+				"precision": 10
 			},
 			{
 				"name": "icd_code",
-				"type": "nvarchar"
+				"type": "varchar"
 			},
 			{
 				"name": "diagnosis_description",
@@ -29,7 +31,7 @@
 			},
 			{
 				"name": "severity",
-				"type": "nvarchar"
+				"type": "varchar"
 			}
 		],
 		"typeProperties": {

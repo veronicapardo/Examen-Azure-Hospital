@@ -13,31 +13,35 @@
 		"schema": [
 			{
 				"name": "billing_id",
-				"type": "nvarchar"
+				"type": "int",
+				"precision": 10
 			},
 			{
 				"name": "admission_id",
-				"type": "nvarchar"
+				"type": "int",
+				"precision": 10
 			},
 			{
 				"name": "charge_type",
-				"type": "nvarchar"
+				"type": "varchar"
 			},
 			{
 				"name": "amount",
-				"type": "nvarchar"
+				"type": "decimal",
+				"precision": 12,
+				"scale": 2
 			},
 			{
 				"name": "payment_status",
-				"type": "nvarchar"
+				"type": "varchar"
 			},
 			{
 				"name": "payment_date",
-				"type": "nvarchar"
+				"type": "date"
 			}
 		],
 		"typeProperties": {
-			"schema": "bronze",
+			"schema": "silver",
 			"table": "billing"
 		}
 	}

@@ -1,6 +1,9 @@
 {
 	"name": "df_silver_diagnoses",
 	"properties": {
+		"folder": {
+			"name": "silver"
+		},
 		"type": "MappingDataFlow",
 		"typeProperties": {
 			"sources": [
@@ -12,8 +15,23 @@
 					"name": "source1"
 				}
 			],
-			"sinks": [],
-			"transformations": [],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "dw_silver_diagnoses",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "split1"
+				}
+			],
 			"scriptLines": [
 				"source(output(",
 				"          diagnosis_id as string,",
@@ -25,7 +43,63 @@
 				"     allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
-				"     format: 'table') ~> source1"
+				"     format: 'table') ~> source1",
+				"source1 derive(diagnosis_id = toInteger(trim(diagnosis_id)),",
+				"          admission_id = toInteger(trim(admission_id)),",
+				"          diagnosis_description = iif(isNull(diagnosis_description) ||trim(diagnosis_description) == '',toString(null()),trim(diagnosis_description)),",
+				"          icd_code = upper(replace( regexReplace(trim(icd_code), '\\\\s*,\\\\s*', ', '),'-','.'  ) ),",
+				"          severity = iif(\r",
+				"    isNull(severity) || trim(severity) == '',\r",
+				"    toString(null()),\r",
+				"\r",
+				"    iif(\r",
+				"        lower(trim(severity)) == 'mild',\r",
+				"        'Mild',\r",
+				"\r",
+				"        iif(\r",
+				"            lower(trim(severity)) == 'moderate',\r",
+				"            'Moderate',\r",
+				"\r",
+				"            iif(\r",
+				"                lower(trim(severity)) == 'severe',\r",
+				"                'Severe',\r",
+				"\r",
+				"                iif(\r",
+				"                    lower(trim(severity)) == 'critical',\r",
+				"                    'Critical',\r",
+				"\r",
+				"                    toString(null())\r",
+				"                )\r",
+				"            )\r",
+				"        )\r",
+				"    )\r",
+				")) ~> derivedColumn1",
+				"derivedColumn1 split(admission_id >= 1 && admission_id <= 1800,",
+				"     disjoint: false) ~> split1@(validos, rechazados)",
+				"split1@validos sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          diagnosis_id as integer,",
+				"          admission_id as integer,",
+				"          icd_code as string,",
+				"          diagnosis_description as string,",
+				"          severity as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          diagnosis_id,",
+				"          admission_id,",
+				"          icd_code,",
+				"          diagnosis_description,",
+				"          severity",
+				"     )) ~> sink1"
 			]
 		}
 	}

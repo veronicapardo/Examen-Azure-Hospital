@@ -13,6 +13,13 @@
 						"type": "DatasetReference"
 					},
 					"name": "source1"
+				},
+				{
+					"dataset": {
+						"referenceName": "dw_silver_admissions",
+						"type": "DatasetReference"
+					},
+					"name": "source2"
 				}
 			],
 			"sinks": [
@@ -33,6 +40,9 @@
 				},
 				{
 					"name": "split1"
+				},
+				{
+					"name": "exists1"
 				}
 			],
 			"scriptLines": [
@@ -48,6 +58,19 @@
 				"     validateSchema: false,",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
 				"     format: 'table') ~> source1",
+				"source(output(",
+				"          admission_id as integer,",
+				"          patient_id as integer,",
+				"          admission_date as date,",
+				"          discharge_date as date,",
+				"          department as string,",
+				"          attending_doctor_id as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     query: 'SELECT admission_id FROM silver.admissions',",
+				"     format: 'query') ~> source2",
 				"source1 derive(billing_id = toInteger(trim(billing_id)),",
 				"          admission_id = toInteger(trim(admission_id)),",
 				"          charge_type = iif(\r",
@@ -169,8 +192,11 @@
 				"        )\r",
 				"    )\r",
 				")) ~> derivedColumn2",
-				"derivedColumn2 split(billing_id >= 1 && admission_id >= 1 && admission_id <= 1800 && !isNull(charge_type) && !isNull(amount) && amount > 0 && !isNull(payment_status),",
+				"exists1 split(billing_id >= 1 && admission_id >= 1 && admission_id <= 1800 && !isNull(charge_type) && !isNull(amount) && amount > 0 && !isNull(payment_status),",
 				"     disjoint: false) ~> split1@(Validos, Rechazados)",
+				"derivedColumn2, source2 exists(derivedColumn1@admission_id == source2@admission_id,",
+				"     negate:false,",
+				"     broadcast: 'auto')~> exists1",
 				"split1@Validos sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     input(",

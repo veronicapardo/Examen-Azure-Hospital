@@ -1,0 +1,60 @@
+{
+	"name": "df_gold_sim_servicio_cargo",
+	"properties": {
+		"folder": {
+			"name": "Gold"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "dw_silver_billing",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "gold_dim_servicio_cargo",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [],
+			"scriptLines": [
+				"source(output(",
+				"          tipo_cargo as string,",
+				"          estado_pago as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     query: 'SELECT DISTINCT\\n    charge_type AS tipo_cargo,\\n\\n    CASE\\n        WHEN UPPER(LTRIM(RTRIM(payment_status))) IN (\\'PAID\\', \\'PAGADO\\')\\n            THEN \\'Paid\\'\\n\\n        WHEN UPPER(LTRIM(RTRIM(payment_status))) IN (\\'PENDING\\', \\'PENDIENTE\\')\\n            THEN \\'Pending\\'\\n\\n        WHEN UPPER(LTRIM(RTRIM(payment_status))) IN (\\'UNPAID\\', \\'IMPAGO\\', \\'IMPAGADO\\')\\n            THEN \\'Unpaid\\'\\n\\n        WHEN UPPER(LTRIM(RTRIM(payment_status))) IN (\\'OVERDUE\\', \\'VENCIDO\\')\\n            THEN \\'Overdue\\'\\n\\n        ELSE \\'Unspecified\\'\\n    END AS estado_pago\\n\\nFROM silver.billing\\nWHERE charge_type IS NOT NULL\\n  AND payment_status IS NOT NULL',",
+				"     format: 'query') ~> source1",
+				"source1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          servicio_cargo_key as integer,",
+				"          tipo_cargo as string,",
+				"          estado_pago as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          tipo_cargo,",
+				"          estado_pago",
+				"     )) ~> sink1"
+			]
+		}
+	}
+}

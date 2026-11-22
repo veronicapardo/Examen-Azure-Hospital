@@ -1,0 +1,78 @@
+{
+	"name": "df_gold_fact_facturacion",
+	"properties": {
+		"folder": {
+			"name": "Gold"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "dw_silver_billing",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "gold_fact_facturacion",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [],
+			"scriptLines": [
+				"source(output(",
+				"          billing_id_bk as integer,",
+				"          admission_id_bk as integer,",
+				"          paciente_key as integer,",
+				"          departamento_key as integer,",
+				"          servicio_cargo_key as integer,",
+				"          fecha_pago_key as integer,",
+				"          monto_facturado as decimal(12,2),",
+				"          conteo_transacciones as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     query: 'SELECT\\n    b.billing_id AS billing_id_bk,\\n\\n    b.admission_id AS admission_id_bk,\\n\\n    p.paciente_key,\\n\\n    d.departamento_key,\\n\\n    sc.servicio_cargo_key,\\n\\n    CASE\\n        WHEN b.payment_date IS NULL THEN NULL\\n        ELSE CONVERT(INT, CONVERT(CHAR(8), b.payment_date, 112))\\n    END AS fecha_pago_key,\\n\\n    b.amount AS monto_facturado,\\n\\n    1 AS conteo_transacciones\\n\\nFROM silver.billing b\\n\\nINNER JOIN silver.admissions a\\n    ON a.admission_id = b.admission_id\\n\\nINNER JOIN gold.dim_paciente p\\n    ON p.patient_id_bk = a.patient_id\\n\\nINNER JOIN gold.dim_departamento d\\n    ON d.nombre_departamento = a.department\\n\\nINNER JOIN gold.dim_servicio_cargo sc\\n    ON sc.tipo_cargo = b.charge_type\\n    AND sc.estado_pago =\\n        CASE\\n            WHEN UPPER(LTRIM(RTRIM(b.payment_status))) IN (\\'PAID\\', \\'PAGADO\\')\\n                THEN \\'Paid\\'\\n\\n            WHEN UPPER(LTRIM(RTRIM(b.payment_status))) IN (\\'PENDING\\', \\'PENDIENTE\\')\\n                THEN \\'Pending\\'\\n\\n            WHEN UPPER(LTRIM(RTRIM(b.payment_status))) IN (\\'UNPAID\\', \\'IMPAGO\\', \\'IMPAGADO\\')\\n                THEN \\'Unpaid\\'\\n\\n            WHEN UPPER(LTRIM(RTRIM(b.payment_status))) IN (\\'OVERDUE\\', \\'VENCIDO\\')\\n                THEN \\'Overdue\\'\\n\\n            ELSE \\'Unspecified\\'\\n        END\\n\\nWHERE b.amount IS NOT NULL\\n  AND b.amount > 0\\n  AND b.charge_type IS NOT NULL',",
+				"     format: 'query') ~> source1",
+				"source1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          facturacion_key as long,",
+				"          billing_id_bk as integer,",
+				"          admission_id_bk as integer,",
+				"          paciente_key as integer,",
+				"          departamento_key as integer,",
+				"          servicio_cargo_key as integer,",
+				"          fecha_pago_key as integer,",
+				"          monto_facturado as decimal(12,2),",
+				"          conteo_transacciones as integer",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          billing_id_bk,",
+				"          admission_id_bk,",
+				"          paciente_key,",
+				"          departamento_key,",
+				"          servicio_cargo_key,",
+				"          fecha_pago_key,",
+				"          monto_facturado,",
+				"          conteo_transacciones",
+				"     )) ~> sink1"
+			]
+		}
+	}
+}

@@ -1,0 +1,78 @@
+{
+	"name": "df_gold_dim_paciente",
+	"properties": {
+		"folder": {
+			"name": "Gold"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "dw_silver_patients",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "gold_dim_paciente",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [],
+			"scriptLines": [
+				"source(output(",
+				"          patient_id_bk as integer,",
+				"          nombre_completo as string,",
+				"          genero as string,",
+				"          fecha_nacimiento as date,",
+				"          rango_etario as string,",
+				"          correo_electronico as string,",
+				"          direccion as string,",
+				"          proveedor_seguro as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     query: 'SELECT\\n    patient_id AS patient_id_bk,\\n\\n    full_name AS nombre_completo,\\n\\n    CASE\\n        WHEN UPPER(LTRIM(RTRIM(gender))) IN (\\'MALE\\', \\'M\\', \\'MASCULINO\\')\\n            THEN \\'Masculino\\'\\n        WHEN UPPER(LTRIM(RTRIM(gender))) IN (\\'FEMALE\\', \\'F\\', \\'FEMENINO\\')\\n            THEN \\'Femenino\\'\\n        ELSE \\'Otro\\'\\n    END AS genero,\\n\\n    date_of_birth AS fecha_nacimiento,\\n\\n    CASE\\n        WHEN date_of_birth IS NULL THEN NULL\\n\\n        WHEN\\n            DATEDIFF(YEAR, date_of_birth, GETDATE())\\n            -\\n            CASE\\n                WHEN DATEADD(\\n                    YEAR,\\n                    DATEDIFF(YEAR, date_of_birth, GETDATE()),\\n                    date_of_birth\\n                ) > GETDATE()\\n                THEN 1\\n                ELSE 0\\n            END <= 18\\n            THEN \\'0-18\\'\\n\\n        WHEN\\n            DATEDIFF(YEAR, date_of_birth, GETDATE())\\n            -\\n            CASE\\n                WHEN DATEADD(\\n                    YEAR,\\n                    DATEDIFF(YEAR, date_of_birth, GETDATE()),\\n                    date_of_birth\\n                ) > GETDATE()\\n                THEN 1\\n                ELSE 0\\n            END <= 35\\n            THEN \\'19-35\\'\\n\\n        WHEN\\n            DATEDIFF(YEAR, date_of_birth, GETDATE())\\n            -\\n            CASE\\n                WHEN DATEADD(\\n                    YEAR,\\n                    DATEDIFF(YEAR, date_of_birth, GETDATE()),\\n                    date_of_birth\\n                ) > GETDATE()\\n                THEN 1\\n                ELSE 0\\n            END <= 60\\n            THEN \\'36-60\\'\\n\\n        ELSE \\'60+\\'\\n    END AS rango_etario,\\n\\n    email AS correo_electronico,\\n\\n    address AS direccion,\\n\\n    COALESCE(insurance_provider, \\'Sin seguro\\') AS proveedor_seguro\\n\\nFROM silver.patients',",
+				"     format: 'query') ~> source1",
+				"source1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          paciente_key as integer,",
+				"          patient_id_bk as integer,",
+				"          nombre_completo as string,",
+				"          genero as string,",
+				"          fecha_nacimiento as date,",
+				"          rango_etario as string,",
+				"          correo_electronico as string,",
+				"          direccion as string,",
+				"          proveedor_seguro as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          patient_id_bk,",
+				"          nombre_completo,",
+				"          genero,",
+				"          fecha_nacimiento,",
+				"          rango_etario,",
+				"          correo_electronico,",
+				"          direccion,",
+				"          proveedor_seguro",
+				"     )) ~> sink1"
+			]
+		}
+	}
+}

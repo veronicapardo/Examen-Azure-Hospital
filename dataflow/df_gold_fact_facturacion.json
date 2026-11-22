@@ -12,7 +12,42 @@
 						"referenceName": "dw_silver_billing",
 						"type": "DatasetReference"
 					},
-					"name": "source1"
+					"name": "billing"
+				},
+				{
+					"dataset": {
+						"referenceName": "dw_silver_admissions",
+						"type": "DatasetReference"
+					},
+					"name": "silverAdmisions"
+				},
+				{
+					"dataset": {
+						"referenceName": "gold_dim_paciente",
+						"type": "DatasetReference"
+					},
+					"name": "pacientes"
+				},
+				{
+					"dataset": {
+						"referenceName": "gold_dim_departamento",
+						"type": "DatasetReference"
+					},
+					"name": "departamento"
+				},
+				{
+					"dataset": {
+						"referenceName": "gold_dim_servicio_cargo",
+						"type": "DatasetReference"
+					},
+					"name": "servicioCargo"
+				},
+				{
+					"dataset": {
+						"referenceName": "gold_dim_fecha",
+						"type": "DatasetReference"
+					},
+					"name": "fechaPago"
 				}
 			],
 			"sinks": [
@@ -24,7 +59,38 @@
 					"name": "sink1"
 				}
 			],
-			"transformations": [],
+			"transformations": [
+				{
+					"name": "select1"
+				},
+				{
+					"name": "select2"
+				},
+				{
+					"name": "select3"
+				},
+				{
+					"name": "join1"
+				},
+				{
+					"name": "join2"
+				},
+				{
+					"name": "join3"
+				},
+				{
+					"name": "join4"
+				},
+				{
+					"name": "verifestadogold"
+				},
+				{
+					"name": "join5"
+				},
+				{
+					"name": "derivedColumn1"
+				}
+			],
 			"scriptLines": [
 				"source(output(",
 				"          billing_id as integer,",
@@ -37,9 +103,122 @@
 				"     allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
-				"     query: 'SELECT\\n    b.billing_id AS billing_id_bk,\\n\\n    b.admission_id AS admission_id_bk,\\n\\n    p.paciente_key,\\n\\n    d.departamento_key,\\n\\n    sc.servicio_cargo_key,\\n\\n    CASE\\n        WHEN b.payment_date IS NULL THEN NULL\\n        ELSE CONVERT(INT, CONVERT(CHAR(8), b.payment_date, 112))\\n    END AS fecha_pago_key,\\n\\n    b.amount AS monto_facturado,\\n\\n    1 AS conteo_transacciones\\n\\nFROM silver.billing b\\n\\nINNER JOIN silver.admissions a\\n    ON a.admission_id = b.admission_id\\n\\nINNER JOIN gold.dim_paciente p\\n    ON p.patient_id_bk = a.patient_id\\n\\nINNER JOIN gold.dim_departamento d\\n    ON d.nombre_departamento = a.department\\n\\nINNER JOIN gold.dim_servicio_cargo sc\\n    ON sc.tipo_cargo = b.charge_type\\n    AND sc.estado_pago =\\n        CASE\\n            WHEN UPPER(LTRIM(RTRIM(b.payment_status))) IN (\\'PAID\\', \\'PAGADO\\')\\n                THEN \\'Paid\\'\\n\\n            WHEN UPPER(LTRIM(RTRIM(b.payment_status))) IN (\\'PENDING\\', \\'PENDIENTE\\')\\n                THEN \\'Pending\\'\\n\\n            WHEN UPPER(LTRIM(RTRIM(b.payment_status))) IN (\\'UNPAID\\', \\'IMPAGO\\', \\'IMPAGADO\\')\\n                THEN \\'Unpaid\\'\\n\\n            WHEN UPPER(LTRIM(RTRIM(b.payment_status))) IN (\\'OVERDUE\\', \\'VENCIDO\\')\\n                THEN \\'Overdue\\'\\n\\n            ELSE \\'Unspecified\\'\\n        END\\n\\nWHERE b.amount IS NOT NULL\\n  AND b.amount > 0\\n  AND b.charge_type IS NOT NULL',",
-				"     format: 'query') ~> source1",
-				"source1 sink(allowSchemaDrift: true,",
+				"     format: 'table') ~> billing",
+				"source(output(",
+				"          admission_id as integer,",
+				"          patient_id as integer,",
+				"          admission_date as date,",
+				"          discharge_date as date,",
+				"          department as string,",
+				"          attending_doctor_id as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> silverAdmisions",
+				"source(output(",
+				"          paciente_key as integer,",
+				"          patient_id_bk as integer,",
+				"          nombre_completo as string,",
+				"          genero as string,",
+				"          fecha_nacimiento as date,",
+				"          rango_etario as string,",
+				"          correo_electronico as string,",
+				"          direccion as string,",
+				"          proveedor_seguro as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> pacientes",
+				"source(output(",
+				"          departamento_key as integer,",
+				"          nombre_departamento as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> departamento",
+				"source(output(",
+				"          servicio_cargo_key as integer,",
+				"          tipo_cargo as string,",
+				"          estado_pago as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> servicioCargo",
+				"source(output(",
+				"          fecha_key as integer,",
+				"          fecha_completa as date,",
+				"          anio as integer,",
+				"          trimestre as integer,",
+				"          trimestre_nombre as string,",
+				"          mes as integer,",
+				"          mes_nombre as string,",
+				"          mes_corto as string,",
+				"          semana_anio as integer,",
+				"          dia_mes as integer,",
+				"          dia_semana as integer,",
+				"          dia_nombre as string,",
+				"          es_fin_de_semana as boolean",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> fechaPago",
+				"silverAdmisions select(mapColumn(",
+				"          admission_id,",
+				"          patient_id,",
+				"          department",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"pacientes select(mapColumn(",
+				"          paciente_key,",
+				"          patient_id_bk",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select2",
+				"fechaPago select(mapColumn(",
+				"          fecha_key,",
+				"          fecha_completa",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select3",
+				"billing, silverAdmisions join(billing@admission_id == silverAdmisions@admission_id,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> join1",
+				"join1, pacientes join(patient_id == patient_id_bk,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> join2",
+				"join2, departamento join(department == nombre_departamento,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> join3",
+				"verifestadogold, servicioCargo join(charge_type == tipo_cargo",
+				"     && payment_status == estado_pago,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> join4",
+				"join3 derive(payment_status = iif(     upper(trim(payment_status)) == 'PAID' || upper(trim(payment_status)) == 'PAGADO', 'Paid',     iif(         upper(trim(payment_status)) == 'PENDING' || upper(trim(payment_status)) == 'PENDIENTE', 'Pending',         iif(             upper(trim(payment_status)) == 'UNPAID' || upper(trim(payment_status)) == 'IMPAGO' || upper(trim(payment_status)) == 'IMPAGADO', 'Unpaid',             iif(                 upper(trim(payment_status)) == 'OVERDUE' || upper(trim(payment_status)) == 'VENCIDO', 'Overdue',                 'Unspecified'             )         )     ) )) ~> verifestadogold",
+				"join4, fechaPago join(payment_date == fecha_completa,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> join5",
+				"join5 derive(billing_id_bk = billing_id,",
+				"          admission_id_bk = billing@admission_id,",
+				"          fecha_pago_key = fecha_key,",
+				"          monto_facturado = amount,",
+				"          conteo_transacciones = 1) ~> derivedColumn1",
+				"derivedColumn1 sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     input(",
 				"          facturacion_key as long,",

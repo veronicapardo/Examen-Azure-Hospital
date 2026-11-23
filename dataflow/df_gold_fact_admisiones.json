@@ -96,6 +96,9 @@
 				},
 				{
 					"name": "idInt"
+				},
+				{
+					"name": "split1"
 				}
 			],
 			"scriptLines": [
@@ -213,7 +216,7 @@
 				"     matchType:'exact',",
 				"     ignoreSpaces: false,",
 				"     broadcast: 'auto')~> join4",
-				"join4, select1 join(admission_date == fecha_completa,",
+				"split1@vallidos, select1 join(admission_date == fecha_completa,",
 				"     joinType:'left',",
 				"     matchType:'exact',",
 				"     ignoreSpaces: false,",
@@ -235,10 +238,14 @@
 				"     ),",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> select2",
-				"join6 derive(admission_id_bk = ADMISIONES@admission_id,",
+				"join6 derive(admission_id_bk = split1@vallidos@admission_id,",
 				"          medico_id = attending_doctor_id,",
-				"          fecha_ingreso_key = select1@fecha_key,",
-				"          fecha_alta_key = select2@fecha_key,",
+				"          fecha_ingreso_key = toInteger(toString(admission_date, 'yyyyMMdd')),",
+				"          fecha_alta_key = iif(\r",
+				"    isNull(discharge_date),\r",
+				"    toInteger(null()),\r",
+				"    toInteger(toString(discharge_date, 'yyyyMMdd'))\r",
+				"),",
 				"          dias_estancia = iif(\r",
 				"    isNull(discharge_date),\r",
 				"    toInteger(null()),\r",
@@ -246,6 +253,8 @@
 				"),",
 				"          conteo_admisiones = 1) ~> derivedColumn1",
 				"silverDiagnostc derive(admission_id = toInteger(trim(admission_id))) ~> idInt",
+				"join4 split(year(admission_date) >= 2020 && year(admission_date) <= 2030,",
+				"     disjoint: false) ~> split1@(vallidos, rechazados)",
 				"derivedColumn1 sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     input(",
